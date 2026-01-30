@@ -2,3 +2,4 @@ pandas
 pyarrow
 fastparquet
 requests
+openpyxl
