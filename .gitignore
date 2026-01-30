@@ -1,2 +1,99 @@
-.venv/
+# =========================
+# Project specific
+# =========================
 data/
+
+# =========================
+# Python bytecode / caches
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# =========================
+# Virtual environments
+# =========================
+.venv/
+venv/
+env/
+ENV/
+.conda/
+.condarc
+.python-version
+
+# =========================
+# Packaging / build output
+# =========================
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+*.whl
+
+# =========================
+# Test / coverage / reports
+# =========================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.junit.xml
+reports/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.pyre/
+
+# =========================
+# Notebooks
+# =========================
+.ipynb_checkpoints/
+.notebook_cache/
+*.nb.html
+
+# If you generate data/plots in notebooks, ignore those folders:
+data/
+outputs/
+figures/
+
+# =========================
+# IDEs / editors
+# =========================
+.vscode/
+.idea/
+*.iml
+
+# =========================
+# OS junk
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Secrets / local config
+# =========================
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# =========================
+# Local databases
+# =========================
+*.sqlite
+*.sqlite3
+*.db
+
+# =========================
+# Jupyter kernels / misc
+# =========================
+.ipython/
