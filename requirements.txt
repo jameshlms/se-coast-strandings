@@ -1,5 +1,8 @@
 pandas
 pyarrow
 fastparquet
-requests
 openpyxl
+matplotlib
+seaborn
+scikit-learn
+numpy
