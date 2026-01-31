@@ -2,15 +2,6 @@
 
 This research ...
 
-## Contributors
-- James Holmes ([@jameshlms](https://github.com/jameshlms))
-- Daivik Nambiar ([@daiviknambiar](https://github.com/daiviknambiar))
-- Calvin Zheng ([@Calvinzheng123](https://github.com/Calvinzheng123))
-- Aditri Mohanty ([@AditriM](https://github.com/AditriM))
-- Tanushri Ravada ([@travada12](https://github.com/travada12))
-- Jennifer Cotto ([@jencotto](https://github.com/jencotto))
-- Shefali Aswal ([@saswal1](https://github.com/saswal1))
-
 ## Setup
 1. Create a python virtual environment at the project root and activate it.
 
@@ -53,3 +44,30 @@ This research ...
     ```bash
     pip install -e .
     ```
+
+## Usage
+
+...
+
+## Data
+
+### Coverage & Notes
+
+...
+
+### Acknowledgements
+
+The data used in this project were collected by the [U.S. Marine Mammal Stranding Network](https://www.fisheries.noaa.gov/national/marine-life-distress/national-marine-mammal-stranding-response-network). The [U.S. National Marine Mammal Stranding Database](https://www.fisheries.noaa.gov/national/marine-life-distress/national-stranding-database-public-access) was queried on January 30, 2026; data may contain errors and/or be incomplete.
+
+The findings and conclusions in this paper are those of the author(s) and do not necessarily represent the views of the [Marine Mammal Health and Stranding Response Program](https://www.fisheries.noaa.gov/national/marine-life-distress/marine-mammal-health-and-stranding-response-program) and/or [NOAA](https://www.noaa.gov/) and/or all the members of the [National Marine Mammal Stranding Response Network](https://www.fisheries.noaa.gov/national/marine-life-distress/national-marine-mammal-stranding-response-network).
+
+
+## Contributors
+- James Holmes ([@jameshlms](https://github.com/jameshlms))
+- Daivik Nambiar ([@daiviknambiar](https://github.com/daiviknambiar))
+- Calvin Zheng ([@Calvinzheng123](https://github.com/Calvinzheng123))
+- Aditri Mohanty ([@AditriM](https://github.com/AditriM))
+- Tanushri Ravada ([@travada12](https://github.com/travada12))
+- Jennifer Cotto ([@jencotto](https://github.com/jencotto))
+- Shefali Aswal ([@saswal1](https://github.com/saswal1))
+
