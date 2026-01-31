@@ -73,7 +73,8 @@ def append_weather_context(
     hourly_variables: Sequence[str],
     daily_variables: Sequence[str],
     tz: str = "America/New_York",
-    week_delta: int = 1,
+    days_prior: int = 7,
+    include_deltas: bool = False,
     inplace: bool = False,
 ) -> DataFrame | None:
     """
@@ -93,20 +94,27 @@ def append_weather_context(
     :type daily_variables: Sequence[str]
     :param tz: The timezone for the weather data (default is "America/New_York")
     :type tz: str
-    :param week_delta: The number of weeks to subtract from the date for the end date calculation (default is 1)
-    :type week_delta: int
+    :param days_prior: The number of days to subtract from the date for the start date calculation (default is 7)
+    :type days_prior: int
+    :param include_deltas: Whether to include delta columns for the weather variables (default is False)
+    :type include_deltas: bool
     :param inplace: Whether to modify the dataframe in place or return a new one
     :type inplace: bool
 
     :return: The modified dataframe if not inplace, else None
     :rtype: DataFrame | None
     """
+    raise NotImplementedError(
+        "Function 'append_weather_context' is not yet implemented."
+    )
     latitudes: Series[float] = _convert_coords(df[str(lat_column)])
     longitudes: Series[float] = _convert_coords(df[str(lon_column)])
 
-    start_dates: Series[str] = _convert_dates(df[str(date_column)])
     end_dates: Series[str] = _convert_dates(
-        df[str(date_column)].astype("datetime64[ns]") - timedelta(weeks=week_delta)
+        df[str(date_column)].astype("datetime64[ns]")
+    )
+    start_dates: Series[str] = _convert_dates(
+        df[str(date_column)].astype("datetime64[ns]") - timedelta(days=days_prior)
     )
 
     hourly_vars: str = _convert_variables(hourly_variables)
@@ -124,23 +132,33 @@ def append_weather_context(
 
     rows = empty(df.shape[0], dtype=object)
 
-    for i, (lat, lon, start_date, end_date) in enumerate(
-        zip(latitudes, longitudes, start_dates, end_dates)
-    ):
+    for idx in range(df.shape[0]):
         data: WeatherAPIResponse = get_weather_data_partial(
-            lat,
-            lon,
-            start_date,
-            end_date,
+            latitudes.iloc[idx],
+            longitudes.iloc[idx],
+            start_dates.iloc[idx],
+            end_dates.iloc[idx],
         )
 
-        daily_data = data.get("daily", {})
+        daily_data = data.get("daily") or {}
 
-        rows[i] = {
-            f"{var}_{i}_days_prior": val
-            for var in daily_variables
-            for i, val in enumerate(daily_data.get(var, []))
-        }
+        row = {}
+        for var in daily_variables:
+            vals = daily_data.get(var) or []
+
+            for i, val in enumerate(vals):
+                row[f"{var}_{i}_days_prior"] = val
+
+                if include_deltas and i > 0:
+                    prev = vals[i - 1]
+                    curr = val
+
+                    if isinstance(prev, float) and isinstance(curr, float):
+                        row[f"{var}_{i}_days_prior_delta"] = curr - prev
+                    else:
+                        row[f"{var}_{i}_days_prior_delta"] = None
+
+        rows[idx] = row
 
     results = DataFrame(rows)
 
