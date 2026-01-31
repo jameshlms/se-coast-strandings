@@ -30,8 +30,8 @@ def _get_weather_data(
     lon: float,
     start_date: str,
     end_date: str,
-    hourly_variables: str,
-    daily_variables: str,
+    hourly_variables: str | None = None,
+    daily_variables: str | None = None,
     tz: str = "America/New_York",
 ) -> WeatherAPIResponse:
     params = {
@@ -39,10 +39,14 @@ def _get_weather_data(
         "longitude": lon,
         "start_date": start_date,
         "end_date": end_date,
-        "hourly": hourly_variables,
-        "daily": daily_variables,
         "timezone": tz,
     }
+
+    if hourly_variables is not None:
+        params["hourly"] = hourly_variables
+
+    if daily_variables is not None:
+        params["daily"] = daily_variables
 
     response = session.get(URL, params=params, timeout=20)
     data: WeatherAPIResponse = response.json()
@@ -57,7 +61,7 @@ def _convert_dates(dates: Series[Timestamp]) -> Series[str]:
     return dates.astype("datetime64[ns]").dt.strftime("%Y-%m-%d")
 
 
-def _convert_variables(variables: list[str]) -> str:
+def _convert_variables(variables: Sequence[str]) -> str:
     return ",".join(variables)
 
 
@@ -66,8 +70,8 @@ def append_weather_context(
     lat_column: str,
     lon_column: str,
     date_column: str,
-    hourly_variables: list[str],
-    daily_variables: list[str],
+    hourly_variables: Sequence[str],
+    daily_variables: Sequence[str],
     tz: str = "America/New_York",
     week_delta: int = 1,
     inplace: bool = False,
@@ -83,10 +87,10 @@ def append_weather_context(
     :type lon_column: str
     :param date_column: The name of the column containing date values (as Timestamps)
     :type date_column: str
-    :param hourly_variables: The list of hourly weather variables to retrieve (e.g. temperature_2m, precipitation)
-    :type hourly_variables: list[str]
-    :param daily_variables: The list of daily weather variables to retrieve (e.g. temperature_2m_max, precipitation_sum)
-    :type daily_variables: list[str]
+    :param hourly_variables: The Sequence of hourly weather variables to retrieve (e.g. temperature_2m, precipitation)
+    :type hourly_variables: Sequence[str]
+    :param daily_variables: The Sequence of daily weather variables to retrieve (e.g. temperature_2m_max, precipitation_sum)
+    :type daily_variables: Sequence[str]
     :param tz: The timezone for the weather data (default is "America/New_York")
     :type tz: str
     :param week_delta: The number of weeks to subtract from the date for the end date calculation (default is 1)
@@ -97,12 +101,12 @@ def append_weather_context(
     :return: The modified dataframe if not inplace, else None
     :rtype: DataFrame | None
     """
-    latitudes: Series[float] = _convert_coords(df[lat_column])
-    longitudes: Series[float] = _convert_coords(df[lon_column])
+    latitudes: Series[float] = _convert_coords(df[str(lat_column)])
+    longitudes: Series[float] = _convert_coords(df[str(lon_column)])
 
-    start_dates: Series[str] = _convert_dates(df[date_column])
+    start_dates: Series[str] = _convert_dates(df[str(date_column)])
     end_dates: Series[str] = _convert_dates(
-        df[date_column].astype("datetime64[ns]") - timedelta(weeks=week_delta)
+        df[str(date_column)].astype("datetime64[ns]") - timedelta(weeks=week_delta)
     )
 
     hourly_vars: str = _convert_variables(hourly_variables)
@@ -131,11 +135,12 @@ def append_weather_context(
         )
 
         daily_data = data.get("daily", {})
-        row_data = {
-            f"weather_{key}": daily_data.get(key, [None])[-1] for key in daily_variables
-        }
 
-        rows[i] = row_data
+        rows[i] = {
+            f"{var}_{i}_days_prior": val
+            for var in daily_variables
+            for i, val in enumerate(daily_data.get(var, []))
+        }
 
     results = DataFrame(rows)
 
