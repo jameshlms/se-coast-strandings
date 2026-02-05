@@ -9,8 +9,6 @@ from pandas import DataFrame, Series, Timestamp
 from requests import Session
 
 URL: Final[str] = "https://historical-forecast-api.open-meteo.com/v1/forecast"
-
-
 DAILY_VARIABLES_KEY: Final[str] = "daily"
 
 
@@ -53,8 +51,6 @@ def _get_weather_data(
 
     if daily_variables is not None:
         params["daily"] = daily_variables
-
-    print(params)
 
     response = session.get(URL, params=params, timeout=60)
     data: Sequence[WeatherAPIResponse] | WeatherAPIResponse = response.json()
@@ -152,8 +148,6 @@ def fetch_weather_context(
         for i, forecast in zip(map(int, group_df.index), response):
             row: dict[str, float] = {}
 
-            print(forecast)
-
             _, variables = _get_daily_times_and_values(forecast, daily_variables)
             for var_name, var_values in variables.items():
                 for j, n_days in enumerate(range(days_prior - 1, -1, -1)):
@@ -166,11 +160,15 @@ def fetch_weather_context(
 
                         if isinstance(prev, float) and isinstance(curr, float):
                             row[f"{var_name}_{n_days}_days_prior_delta"] = curr - prev
+
                         else:
                             row[f"{var_name}_{n_days}_days_prior_delta"] = None
+
             print(row)
             rows[i] = row
+
         sleep(sleep_interval)
+
     results = DataFrame(list(rows))
 
     return results
