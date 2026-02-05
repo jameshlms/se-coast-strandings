@@ -1,0 +1,9 @@
+[
+  {
+    "date": "2025-05-02",
+    "model": "ms copilot",
+    "prompt": "Are there datasets on this page that are about or can indicate food density in the ocean?",
+    "opened_resources": ["https://www.marinedatascience.co/data/"],
+    "response_file": "chats/food_density_inquiry.md"
+  }
+]
