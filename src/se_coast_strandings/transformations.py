@@ -47,7 +47,8 @@ def make_dt_col(day_col: Series, month_col: Series, year_col: Series) -> Series:
     Returns:
         pd.Series: A Series of datetime objects.
     """
-    month_col = month_col.apply(lambda m: datetime.strptime(m, "%b").month)
+    if month_col.dtype in ("object", "string", "category"):
+        month_col = month_col.apply(lambda m: datetime.strptime(m, "%b").month)
     dates = to_datetime(
         dict(
             year=year_col,
