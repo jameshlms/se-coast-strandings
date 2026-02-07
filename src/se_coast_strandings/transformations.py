@@ -47,7 +47,11 @@ def make_dt_col(day_col: Series, month_col: Series, year_col: Series) -> Series:
     Returns:
         pd.Series: A Series of datetime objects.
     """
-    if month_col.dtype in ("object", "string", "category"):
+    if month_col.dtype in (
+        "object",
+        "string",
+        "category",
+    ):  # Convert month names to month numbers
         month_col = month_col.apply(lambda m: datetime.strptime(m, "%b").month)
     dates = to_datetime(
         dict(
