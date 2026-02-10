@@ -118,7 +118,7 @@ def make_cyclic_season(
     Returns:
         pd.DataFrame | Tuple[pd.Series, pd.Series]: A DataFrame with two columns representing the cyclic season components or a tuple of two Series.
     """
-    seasons = make_season_col(date_series)
+    seasons = date_series.apply(_get_season)
 
     return make_cyclic(
         series=seasons,
