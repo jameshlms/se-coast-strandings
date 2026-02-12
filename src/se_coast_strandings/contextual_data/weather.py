@@ -8,7 +8,7 @@ from numpy import empty
 from pandas import DataFrame, Series, Timestamp
 from requests import Session
 
-URL: Final[str] = "https://historical-forecast-api.open-meteo.com/v1/forecast"
+URL: Final[str] = "https://archive-api.open-meteo.com/v1/archive"
 DAILY_VARIABLES_KEY: Final[str] = "daily"
 
 
@@ -80,8 +80,7 @@ def fetch_weather_context(
     tz: str = "America/New_York",
     days_prior: int = 7,
     include_deltas: bool = False,
-    batch_size: int = 50,
-    sleep_interval: int = 30,
+    sleep_interval: int = 10,
 ) -> DataFrame:
     """
     fetch weather context data to the given dataframe based on latitude, longitude, and date columns.
