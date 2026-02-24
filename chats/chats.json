@@ -1,10 +1,16 @@
 [
   {
-    "date": "2025-05-02",
+    "date": "2026-05-02",
     "model": "ms copilot",
     "prompt": "Are there datasets on this page that are about or can indicate food density in the ocean?",
     "opened_resources": ["https://www.marinedatascience.co/data/"],
-    "response_file": "chats/food_density_inquiry.md"
+    "response_file": "/chats/food_density_inquiry.md"
   },
-  {}
+  {
+    "date": "2026-21-02",
+    "model": "proton lumo",
+    "prompt": "How can I make a time series forecasting for the counts per volume of plankton along the coast having data from 1952 to 2005? Would this be enough and do I need to add other features?",
+    "opened_resources": [],
+    "response_file": "/chats/plankton_forecasting.md"
+  }
 ]
