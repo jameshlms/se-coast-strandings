@@ -52,8 +52,26 @@ def _get_weather_data(
     if daily_variables is not None:
         params["daily"] = daily_variables
 
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = session.get(URL, params=params, timeout=60)
+            if response.status_code == 200:
+                data: Sequence[WeatherAPIResponse] | WeatherAPIResponse = response.json()
+                return data
+            if attempt < max_retries - 1:
+                sleep(2**attempt)  # 1s, 2s, 4s
+                continue
+            response.raise_for_status()
+        except Exception:
+            if attempt < max_retries - 1:
+                sleep(2**attempt)
+                continue
+            raise
+
+    # Fallback (should not reach here)
     response = session.get(URL, params=params, timeout=60)
-    data: Sequence[WeatherAPIResponse] | WeatherAPIResponse = response.json()
+    data = response.json()
     return data
 
 

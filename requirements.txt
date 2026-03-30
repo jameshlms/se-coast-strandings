@@ -9,3 +9,6 @@ numpy
 geopandas
 requests
 prophet
+lightgbm
+shap
+statsmodels

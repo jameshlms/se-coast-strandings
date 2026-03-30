@@ -1,3 +1,4 @@
+from .contextual_data.lunar_phases import add_moon_features, moon_age, moon_phase
 from .contextual_data.plankton_abundance import (
     build_plankton_lookup,
     merge_plankton_to_strandings,
@@ -18,4 +19,7 @@ __all__ = [
     "make_season_col",
     "build_plankton_lookup",
     "merge_plankton_to_strandings",
+    "add_moon_features",
+    "moon_age",
+    "moon_phase",
 ]
