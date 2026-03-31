@@ -1,3 +1,4 @@
+from .lunar_phases import add_moon_features, moon_age, moon_phase
 from .plankton_abundance import (
     assign_region,
     build_plankton_lookup,
@@ -16,4 +17,7 @@ __all__ = [
     "build_plankton_lookup",
     "get_plankton_density",
     "merge_plankton_to_strandings",
+    "add_moon_features",
+    "moon_age",
+    "moon_phase",
 ]

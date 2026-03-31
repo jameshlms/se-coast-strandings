@@ -51,7 +51,6 @@ reports/
 # If you generate data/plots in notebooks, ignore those folders:
 data/
 outputs/
-figures/
 
 # =========================
 # IDEs / editors
@@ -92,3 +91,9 @@ Thumbs.db
 # Jupyter kernels / misc
 # =========================
 .ipython/
+
+# =========================
+# Model artifacts
+# =========================
+models/*.pkl
+models/*.json
