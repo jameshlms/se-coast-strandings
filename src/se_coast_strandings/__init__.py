@@ -1,3 +1,4 @@
+from .regions import DEFAULT_REGIONS, make_degrees
 from .contextual_data.lunar_phases import add_moon_features, moon_age, moon_phase
 from .contextual_data.plankton_abundance import (
     build_plankton_lookup,
@@ -12,6 +13,8 @@ from .transformations import (
 )
 
 __all__ = [
+    "DEFAULT_REGIONS",
+    "make_degrees",
     "make_dt_col",
     "make_cyclic",
     "fetch_weather_context",

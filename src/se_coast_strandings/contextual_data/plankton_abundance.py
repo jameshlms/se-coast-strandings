@@ -15,17 +15,9 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series, Timestamp
 
-logger = logging.getLogger(__name__)
+from se_coast_strandings.regions import DEFAULT_REGIONS
 
-# ── Default latitude-band region definitions ────────────────────────────────
-# Each region is a (label, lat_min, lat_max) tuple.
-# These cover the SE coast from South Carolina through Virginia.
-DEFAULT_REGIONS: list[tuple[str, float, float]] = [
-    ("SC", 32.0, 33.5),
-    ("NC-south", 33.5, 34.75),
-    ("NC-north", 34.75, 36.25),
-    ("VA", 36.25, 38.0),
-]
+logger = logging.getLogger(__name__)
 
 
 def assign_region(
