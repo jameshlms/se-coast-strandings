@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from se_coast_strandings.regions import make_degrees
 try:
     import streamlit as st
 except ModuleNotFoundError:  # pragma: no cover - fallback for non-dashboard test envs
@@ -107,14 +108,167 @@ def _standardize_historical_columns(df: pd.DataFrame) -> pd.DataFrame:
     return frame
 
 
+def _assign_region_from_latitude(latitudes: pd.Series) -> pd.Series:
+    labels = pd.Series(pd.NA, index=latitudes.index, dtype="object")
+    numeric_lat = pd.to_numeric(latitudes, errors="coerce")
+    for label, lat_min, lat_max in make_degrees(0.5):
+        mask = (numeric_lat >= lat_min) & (numeric_lat < lat_max)
+        labels.loc[mask] = label
+    return labels
+
+
+def _enrich_historical_weather_from_weekly(events: pd.DataFrame) -> pd.DataFrame:
+    if events.empty or not WEEKLY_DATA_PATH.exists():
+        return events
+    if "mms_observation_dt" not in events.columns or "Latitude" not in events.columns:
+        return events
+
+    weekly = pd.read_parquet(WEEKLY_DATA_PATH)
+    if not {"region", "week_start"}.issubset(weekly.columns):
+        return events
+    max_source = next(
+        (
+            col for col in (
+                "temperature_2m_max_0_days_prior_mean",
+                "temperature_2m_max_0_days_prior",
+                "temperature_2m_max_0_days_prior_max",
+            ) if col in weekly.columns
+        ),
+        None,
+    )
+    min_source = next(
+        (
+            col for col in (
+                "temperature_2m_min_0_days_prior_mean",
+                "temperature_2m_min_0_days_prior",
+            ) if col in weekly.columns
+        ),
+        None,
+    )
+    if max_source is None and min_source is None:
+        return events
+
+    join_cols = ["week_start", "region"]
+    weekly_cols = join_cols.copy()
+    if max_source is not None:
+        weekly_cols.append(max_source)
+    if min_source is not None:
+        weekly_cols.append(min_source)
+
+    weekly_lookup = weekly[weekly_cols].copy()
+    weekly_lookup["week_start"] = pd.to_datetime(weekly_lookup["week_start"], errors="coerce").dt.normalize()
+    weekly_lookup = weekly_lookup.dropna(subset=["week_start", "region"]).drop_duplicates(
+        subset=["week_start", "region"],
+        keep="first",
+    )
+    rename_map = {
+        "week_start": "_weekly_week_start",
+        "region": "_weekly_region",
+    }
+    if max_source is not None:
+        rename_map[max_source] = "_weekly_temp_max"
+    if min_source is not None:
+        rename_map[min_source] = "_weekly_temp_min"
+    weekly_lookup = weekly_lookup.rename(columns=rename_map)
+
+    enriched = events.copy()
+    if "temperature_2m_max_0_days_prior" not in enriched.columns:
+        enriched["temperature_2m_max_0_days_prior"] = pd.NA
+    if "temperature_2m_min_0_days_prior" not in enriched.columns:
+        enriched["temperature_2m_min_0_days_prior"] = pd.NA
+
+    enriched["_weather_join_week_start"] = (
+        pd.to_datetime(enriched["mms_observation_dt"], errors="coerce")
+        .dt.to_period("W")
+        .dt.start_time
+        .dt.normalize()
+    )
+    enriched["_weather_join_region"] = _assign_region_from_latitude(enriched["Latitude"])
+
+    merged = enriched.merge(
+        weekly_lookup,
+        left_on=["_weather_join_week_start", "_weather_join_region"],
+        right_on=["_weekly_week_start", "_weekly_region"],
+        how="left",
+    )
+
+    if max_source is not None:
+        merged["temperature_2m_max_0_days_prior"] = pd.to_numeric(
+            merged["temperature_2m_max_0_days_prior"],
+            errors="coerce",
+        ).fillna(pd.to_numeric(merged["_weekly_temp_max"], errors="coerce"))
+    if min_source is not None:
+        merged["temperature_2m_min_0_days_prior"] = pd.to_numeric(
+            merged["temperature_2m_min_0_days_prior"],
+            errors="coerce",
+        ).fillna(pd.to_numeric(merged["_weekly_temp_min"], errors="coerce"))
+
+    def _fill_from_nearest_week(target_col: str, weekly_value_col: str) -> None:
+        missing_mask = (
+            pd.to_numeric(merged[target_col], errors="coerce").isna()
+            & merged["_weather_join_region"].notna()
+            & merged["_weather_join_week_start"].notna()
+        )
+        if not bool(missing_mask.any()):
+            return
+
+        left = (
+            merged.loc[missing_mask, ["_weather_join_region", "_weather_join_week_start"]]
+            .reset_index()
+            .sort_values(["_weather_join_region", "_weather_join_week_start"])
+        )
+        left["_weather_join_region"] = left["_weather_join_region"].astype("string")
+        right = (
+            weekly_lookup[["_weekly_region", "_weekly_week_start", weekly_value_col]]
+            .dropna(subset=[weekly_value_col])
+            .sort_values(["_weekly_region", "_weekly_week_start"])
+        )
+        right["_weekly_region"] = right["_weekly_region"].astype("string")
+        if left.empty or right.empty:
+            return
+
+        nearest = pd.merge_asof(
+            left=left,
+            right=right,
+            left_on="_weather_join_week_start",
+            right_on="_weekly_week_start",
+            left_by="_weather_join_region",
+            right_by="_weekly_region",
+            direction="nearest",
+        )
+
+        merged.loc[nearest["index"], target_col] = pd.to_numeric(
+            nearest[weekly_value_col],
+            errors="coerce",
+        ).to_numpy(dtype="float64")
+
+    if max_source is not None:
+        _fill_from_nearest_week("temperature_2m_max_0_days_prior", "_weekly_temp_max")
+    if min_source is not None:
+        _fill_from_nearest_week("temperature_2m_min_0_days_prior", "_weekly_temp_min")
+
+    drop_cols = [
+        "_weather_join_week_start",
+        "_weather_join_region",
+        "_weekly_week_start",
+        "_weekly_region",
+    ]
+    if max_source is not None:
+        drop_cols.append("_weekly_temp_max")
+    if min_source is not None:
+        drop_cols.append("_weekly_temp_min")
+
+    return merged.drop(columns=drop_cols, errors="ignore")
+
+
 @st.cache_data(show_spinner=False)
 def load_historical_events() -> pd.DataFrame:
     if HISTORICAL_EVENTS_PATH.exists():
         df = pd.read_parquet(HISTORICAL_EVENTS_PATH)
-        return _standardize_historical_columns(df)
+        return _enrich_historical_weather_from_weekly(_standardize_historical_columns(df))
 
     df = pd.read_excel(_require_file(RAW_HISTORICAL_EVENTS_PATH))
-    return _standardize_historical_columns(df)
+    return _enrich_historical_weather_from_weekly(_standardize_historical_columns(df))
 
 
 @st.cache_data(show_spinner=False)
