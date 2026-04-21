@@ -7,10 +7,16 @@ from .plankton_abundance import (
     merge_plankton_to_strandings,
     prepare_prophet_series,
 )
-from .weather import fetch_weather_context
+from .weather import (
+    fetch_weather_context,
+    get_weather_for_point,
+    get_weather_forecast_for_point,
+)
 
 __all__ = [
     "fetch_weather_context",
+    "get_weather_for_point",
+    "get_weather_forecast_for_point",
     "assign_region",
     "prepare_prophet_series",
     "fit_and_impute",
