@@ -8,6 +8,7 @@ import streamlit as st
 try:
     from dashboard.utils.data_loader import (
         compare_feature_schemas,
+        get_baseline_features,
         get_metrics_features,
         get_model_features,
         load_baseline_model,
@@ -21,6 +22,7 @@ try:
 except ModuleNotFoundError:
     from utils.data_loader import (
         compare_feature_schemas,
+        get_baseline_features,
         get_metrics_features,
         get_model_features,
         load_baseline_model,
@@ -153,6 +155,7 @@ def main() -> None:
 
     model_features = get_model_features(model)
     metrics_features = get_metrics_features(metrics)
+    baseline_features = get_baseline_features(metrics) or model_features
     schema_diff = compare_feature_schemas(model_features, metrics_features)
 
     if schema_diff["model_only"] or schema_diff["metrics_only"]:
@@ -189,17 +192,18 @@ def main() -> None:
         disabled=baseline_model is None,
     )
 
+    all_features = list(dict.fromkeys([*model_features, *baseline_features]))
     feature_df = build_feature_frame_for_week(
         week_start=week_start,
         regions=regions,
         weekly_history=weekly,
         plankton_lookup=plankton_lookup,
-        model_features=model_features,
+        model_features=all_features,
     )
 
     predictions = _predict(model, feature_df[model_features])
     if baseline_model is not None:
-        baseline_predictions = _predict(baseline_model, feature_df[model_features])
+        baseline_predictions = _predict(baseline_model, feature_df[baseline_features])
     else:
         baseline_predictions = pd.Series(float("nan"), index=predictions.index, dtype="float64")
 

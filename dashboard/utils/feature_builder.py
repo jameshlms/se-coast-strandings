@@ -123,17 +123,50 @@ def _apply_weather_aliases(
         if source_key in weather_raw:
             row[feature] = _safe_float(weather_raw[source_key])
 
-    max_0 = _safe_float(weather_raw.get("temperature_2m_max_0_days_prior"), default=math.nan)
-    max_1 = _safe_float(weather_raw.get("temperature_2m_max_1_days_prior"), default=math.nan)
-    max_2 = _safe_float(weather_raw.get("temperature_2m_max_2_days_prior"), default=math.nan)
-    max_3 = _safe_float(weather_raw.get("temperature_2m_max_3_days_prior"), default=math.nan)
+    # Collect per-day max/min values for derived features
+    max_vals = {
+        d: _safe_float(weather_raw.get(f"temperature_2m_max_{d}_days_prior"), default=math.nan)
+        for d in range(7)
+    }
+    min_vals = {
+        d: _safe_float(weather_raw.get(f"temperature_2m_min_{d}_days_prior"), default=math.nan)
+        for d in range(7)
+    }
 
-    if "temp_delta_day0_mean" in model_features and not pd.isna(max_0) and not pd.isna(max_1):
-        row["temp_delta_day0_mean"] = max_0 - max_1
-    if "temp_delta_day1_mean" in model_features and not pd.isna(max_1) and not pd.isna(max_2):
-        row["temp_delta_day1_mean"] = max_1 - max_2
-    if "temp_delta_day2_mean" in model_features and not pd.isna(max_2) and not pd.isna(max_3):
-        row["temp_delta_day2_mean"] = max_2 - max_3
+    # Per-day delta columns: delta_N = value_N - value_(N+1) (days 1–5; day 6 needs day 7)
+    for d in range(1, 7):
+        next_max = _safe_float(weather_raw.get(f"temperature_2m_max_{d + 1}_days_prior"), default=math.nan)
+        next_min = _safe_float(weather_raw.get(f"temperature_2m_min_{d + 1}_days_prior"), default=math.nan)
+        max_delta_col = f"temperature_2m_max_{d}_days_prior_delta_mean"
+        min_delta_col = f"temperature_2m_min_{d}_days_prior_delta_mean"
+        if max_delta_col in model_features and not pd.isna(max_vals[d]) and not pd.isna(next_max):
+            row[max_delta_col] = max_vals[d] - next_max
+        if min_delta_col in model_features and not pd.isna(min_vals[d]) and not pd.isna(next_min):
+            row[min_delta_col] = min_vals[d] - next_min
+
+    # Legacy delta features
+    if "temp_delta_day0_mean" in model_features and not pd.isna(max_vals[0]) and not pd.isna(max_vals[1]):
+        row["temp_delta_day0_mean"] = max_vals[0] - max_vals[1]
+    if "temp_delta_day1_mean" in model_features and not pd.isna(max_vals[1]) and not pd.isna(max_vals[2]):
+        row["temp_delta_day1_mean"] = max_vals[1] - max_vals[2]
+    if "temp_delta_day2_mean" in model_features and not pd.isna(max_vals[2]) and not pd.isna(max_vals[3]):
+        row["temp_delta_day2_mean"] = max_vals[2] - max_vals[3]
+
+    # 7-day summary features
+    valid_max = [v for v in max_vals.values() if not pd.isna(v)]
+    valid_min = [v for v in min_vals.values() if not pd.isna(v)]
+    if valid_max and valid_min:
+        mean_max = sum(valid_max) / len(valid_max)
+        max_max = max(valid_max)
+        min_min = min(valid_min)
+        if "temp_7day_mean_max_mean" in model_features:
+            row["temp_7day_mean_max_mean"] = mean_max
+        if "temp_7day_max_max_mean" in model_features:
+            row["temp_7day_max_max_mean"] = max_max
+        if "temp_7day_min_min_mean" in model_features:
+            row["temp_7day_min_min_mean"] = min_min
+        if "temp_7day_range_mean" in model_features:
+            row["temp_7day_range_mean"] = max_max - min_min
 
 
 def build_feature_row(

@@ -158,6 +158,7 @@ def build_plankton_lookup(
     lat_col: str = "LATITUDE",
     regions: Sequence[tuple[str, float, float]] | None = None,
     freq: str = "W",
+    forecast_end: Timestamp | str | None = None,
     prophet_kwargs: dict[str, Any] | None = None,
 ) -> DataFrame:
     """Build a full imputed plankton density lookup table.
@@ -172,6 +173,8 @@ def build_plankton_lookup(
         lat_col: Latitude column name.
         regions: Region definitions (see assign_region).
         freq: Resampling frequency.
+        forecast_end: Extend the forecast range to this date (useful when the
+            plankton data ends before the modeling period).
         prophet_kwargs: Additional Prophet configuration.
 
     Returns:
@@ -189,6 +192,8 @@ def build_plankton_lookup(
     df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
     global_min = df[date_col].min()
     global_max = df[date_col].max()
+    if forecast_end is not None:
+        global_max = max(global_max, pd.Timestamp(forecast_end))
     full_range = pd.date_range(start=global_min, end=global_max, freq=freq)
 
     all_forecasts: list[DataFrame] = []

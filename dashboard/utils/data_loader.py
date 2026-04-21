@@ -338,6 +338,13 @@ def get_metrics_features(metrics: dict[str, dict[str, Any]]) -> list[str]:
     return [str(f) for f in features]
 
 
+def get_baseline_features(metrics: dict[str, dict[str, Any]]) -> list[str]:
+    features = metrics.get("baseline", {}).get("features")
+    if not isinstance(features, list):
+        return []
+    return [str(f) for f in features]
+
+
 def compare_feature_schemas(
     model_features: list[str],
     metrics_features: list[str],
