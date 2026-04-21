@@ -10,7 +10,10 @@ from se_coast_strandings.contextual_data.lunar_phases import moon_age
 from se_coast_strandings.regions import MAX_LAT, MIN_LAT, make_degrees
 from se_coast_strandings.transformations import make_cyclic, make_cyclic_season
 
-from dashboard.utils.weather_client import get_weather_for_week
+try:
+    from dashboard.utils.weather_client import get_weather_for_week
+except ModuleNotFoundError:
+    from utils.weather_client import get_weather_for_week
 
 WEATHER_ALIAS_PATTERN = re.compile(
     r"^(temperature_2m_(?:max|min)_\d+_days_prior)_(mean|max)$"
