@@ -215,13 +215,13 @@ def _enrich_historical_weather_from_weekly(events: pd.DataFrame) -> pd.DataFrame
         left = (
             merged.loc[missing_mask, ["_weather_join_region", "_weather_join_week_start"]]
             .reset_index()
-            .sort_values(["_weather_join_region", "_weather_join_week_start"])
+            .sort_values(["_weather_join_week_start", "_weather_join_region"])
         )
         left["_weather_join_region"] = left["_weather_join_region"].astype("string")
         right = (
             weekly_lookup[["_weekly_region", "_weekly_week_start", weekly_value_col]]
             .dropna(subset=[weekly_value_col])
-            .sort_values(["_weekly_region", "_weekly_week_start"])
+            .sort_values(["_weekly_week_start", "_weekly_region"])
         )
         right["_weekly_region"] = right["_weekly_region"].astype("string")
         if left.empty or right.empty:
