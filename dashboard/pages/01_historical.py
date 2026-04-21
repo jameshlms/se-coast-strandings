@@ -6,8 +6,12 @@ import pandas as pd
 import pydeck as pdk
 import streamlit as st
 
-from dashboard.utils.data_loader import load_historical_events
-from dashboard.utils.map_helpers import build_historical_map_points
+try:
+    from dashboard.utils.data_loader import load_historical_events
+    from dashboard.utils.map_helpers import build_historical_map_points
+except ModuleNotFoundError:
+    from utils.data_loader import load_historical_events
+    from utils.map_helpers import build_historical_map_points
 from se_coast_strandings.contextual_data.lunar_phases import moon_age, moon_phase
 from se_coast_strandings.regions import make_degrees
 
@@ -169,7 +173,16 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
-    events = load_historical_events()
+    try:
+        events = load_historical_events()
+    except FileNotFoundError as exc:
+        st.error(str(exc))
+        st.info(
+            "To generate artifacts, run `python3 scripts/run_notebooks_end_to_end.py` from the repo root. "
+            "If raw source data is private/unavailable, place "
+            "`UNC-DataRequest-01302026.xlsx` in `data/raw/` first."
+        )
+        return
     if events.empty:
         st.warning("No historical events were loaded.")
         return

@@ -5,18 +5,32 @@ import logging
 import pandas as pd
 import streamlit as st
 
-from dashboard.utils.data_loader import (
-    compare_feature_schemas,
-    get_metrics_features,
-    get_model_features,
-    load_baseline_model,
-    load_lgbm_model,
-    load_metrics,
-    load_plankton_lookup,
-    load_weekly_data,
-)
-from dashboard.utils.feature_builder import build_feature_frame_for_week
-from dashboard.utils.map_helpers import build_prediction_map_points
+try:
+    from dashboard.utils.data_loader import (
+        compare_feature_schemas,
+        get_metrics_features,
+        get_model_features,
+        load_baseline_model,
+        load_lgbm_model,
+        load_metrics,
+        load_plankton_lookup,
+        load_weekly_data,
+    )
+    from dashboard.utils.feature_builder import build_feature_frame_for_week
+    from dashboard.utils.map_helpers import build_prediction_map_points
+except ModuleNotFoundError:
+    from utils.data_loader import (
+        compare_feature_schemas,
+        get_metrics_features,
+        get_model_features,
+        load_baseline_model,
+        load_lgbm_model,
+        load_metrics,
+        load_plankton_lookup,
+        load_weekly_data,
+    )
+    from utils.feature_builder import build_feature_frame_for_week
+    from utils.map_helpers import build_prediction_map_points
 from se_coast_strandings.regions import make_degrees
 
 logger = logging.getLogger(__name__)
