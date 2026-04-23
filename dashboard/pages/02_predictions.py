@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 import pandas as pd
+import pydeck as pdk
 import streamlit as st
 
 try:
@@ -46,18 +47,47 @@ def _predict(model, feature_frame: pd.DataFrame) -> pd.Series:
     return pd.Series(preds, index=feature_frame.index, dtype="float64")
 
 
-def _hide_sidebar_for_prediction_map() -> None:
-    if st.session_state.get("_navigation_mode") != "navigation":
-        return
-    st.markdown(
-        """
-        <style>
-        section[data-testid="stSidebar"] { display: none; }
-        button[data-testid="collapsedControl"] { display: none; }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+def _hex_to_rgb(value: str) -> list[int]:
+    color = str(value).strip().lstrip("#")
+    if len(color) != 6:
+        return [27, 120, 55]
+    try:
+        return [int(color[i : i + 2], 16) for i in (0, 2, 4)]
+    except ValueError:
+        return [27, 120, 55]
+
+
+def _current_theme_type() -> str:
+    try:
+        runtime_theme = st.context.theme
+        runtime_type = str(runtime_theme.get("type") or "").strip().lower()
+        if runtime_type in {"light", "dark"}:
+            return runtime_type
+    except Exception:
+        pass
+    config_theme = str(st.get_option("theme.base") or "").strip().lower()
+    return "dark" if config_theme == "dark" else "light"
+
+
+def _map_style_for_theme() -> str:
+    return "dark" if _current_theme_type() == "dark" else "light"
+
+
+def _tooltip_style_for_theme() -> dict[str, str]:
+    if _current_theme_type() == "dark":
+        return {"backgroundColor": "#0f172a", "color": "#f8fafc"}
+    return {"backgroundColor": "#f8fafc", "color": "#0f172a"}
+
+
+def _fmt_float(value: object) -> str:
+    if pd.isna(value):
+        return "N/A"
+    return f"{float(value):.2f}"
+
+
+def _format_mdy(value: pd.Timestamp) -> str:
+    ts = pd.Timestamp(value)
+    return f"{ts.month}/{ts.day}/{ts.year}"
 
 
 def _snap_to_week_start(value: pd.Timestamp) -> pd.Timestamp:
@@ -113,8 +143,7 @@ def _weekly_sparkline(
 
 
 def main() -> None:
-    _hide_sidebar_for_prediction_map()
-    st.title("Model Prediction Map")
+    st.subheader("Model Prediction Map")
 
     try:
         weekly = load_weekly_data()
@@ -178,19 +207,21 @@ def main() -> None:
     max_week = _snap_to_week_start(weekly["week_start"].max())
     default_week = _snap_to_week_start(max_week + pd.Timedelta(weeks=1))
 
-    selected_date = st.date_input(
-        "Select week",
-        value=default_week.date(),
-        min_value=min_week.date(),
-        max_value=(max_week + pd.Timedelta(weeks=26)).date(),
-    )
-    week_start = _snap_to_week_start(pd.Timestamp(selected_date))
-
-    show_baseline = st.toggle(
-        "Show baseline prediction",
-        value=baseline_model is not None,
-        disabled=baseline_model is None,
-    )
+    with st.sidebar:
+        st.subheader("Prediction Controls")
+        selected_date = st.date_input(
+            "Select week",
+            value=default_week.date(),
+            min_value=min_week.date(),
+            max_value=(max_week + pd.Timedelta(weeks=26)).date(),
+        )
+        week_start = _snap_to_week_start(pd.Timestamp(selected_date))
+        st.caption(f"Week start: {_format_mdy(week_start)}")
+        show_baseline = st.toggle(
+            "Show baseline prediction",
+            value=baseline_model is not None,
+            disabled=baseline_model is None,
+        )
 
     all_features = list(dict.fromkeys([*model_features, *baseline_features]))
     feature_df = build_feature_frame_for_week(
@@ -222,31 +253,86 @@ def main() -> None:
     if map_points.empty:
         st.warning("No mapped regions are available.")
         return
-    st.map(
-        map_points,
-        latitude="latitude",
-        longitude="longitude",
-        size="size",
-        color="color",
-        zoom=6,
-        height=550,
+    map_points = map_points.reset_index(drop=True).copy()
+    map_points["color_rgb"] = map_points["color"].apply(_hex_to_rgb)
+    map_points["radius_px"] = pd.to_numeric(map_points["size"], errors="coerce").fillna(10.0)
+    map_points["region_display"] = map_points["region"].astype(str)
+    map_points["predicted_display"] = map_points["predicted"].apply(_fmt_float)
+    map_points["baseline_display"] = map_points["baseline"].apply(_fmt_float)
+    map_points["actual_display"] = map_points["actual"].apply(_fmt_float)
+    map_points["abs_error_display"] = map_points["abs_error"].apply(_fmt_float)
+    map_points["lat_band_display"] = map_points.apply(
+        lambda row: (
+            f"{float(row['lat_min']):.2f} to {float(row['lat_max']):.2f}"
+            if pd.notna(row["lat_min"]) and pd.notna(row["lat_max"])
+            else "N/A"
+        ),
+        axis=1,
     )
 
-    selected_region = st.selectbox(
-        "Drill down region",
-        options=region_frame["region"].astype(str).tolist(),
-        index=0,
+    map_layer = pdk.Layer(
+        "ScatterplotLayer",
+        data=map_points,
+        get_position=["longitude", "latitude"],
+        get_fill_color="color_rgb",
+        get_radius="radius_px",
+        radius_units="pixels",
+        radius_min_pixels=6,
+        radius_max_pixels=34,
+        pickable=True,
+        auto_highlight=True,
+        stroked=True,
+        get_line_color=[17, 24, 39, 220],
+        line_width_min_pixels=1,
     )
+    center_lat = float(pd.to_numeric(map_points["latitude"], errors="coerce").mean())
+    deck = pdk.Deck(
+        layers=[map_layer],
+        initial_view_state=pdk.ViewState(
+            latitude=center_lat,
+            longitude=-76.5,
+            zoom=6,
+            pitch=0,
+        ),
+        map_style=_map_style_for_theme(),
+        tooltip={
+            "html": (
+                "<div style='padding:8px 10px'>"
+                "<div style='font-size:14px;font-weight:700;margin-bottom:6px'>{region_display}</div>"
+                "<div><b>Prediction:</b> {predicted_display}</div>"
+                "<div><b>Baseline:</b> {baseline_display}</div>"
+                "<div><b>Actual:</b> {actual_display}</div>"
+                "<div><b>Absolute error:</b> {abs_error_display}</div>"
+                "<div><b>Latitude band:</b> {lat_band_display}</div>"
+                "</div>"
+            ),
+            "style": {
+                **_tooltip_style_for_theme(),
+                "maxWidth": "320px",
+                "fontSize": "13px",
+                "lineHeight": "1.35",
+            },
+        },
+    )
+    st.pydeck_chart(deck, height=550)
 
-    detail = region_frame[region_frame["region"] == selected_region].iloc[0]
-    st.subheader(f"Region {selected_region} details")
-    st.write(f"LightGBM prediction: **{float(detail['predicted']):.2f}**")
-    if show_baseline:
-        st.write(f"Baseline prediction: **{float(detail['baseline']):.2f}**")
+    with st.sidebar:
+        st.markdown("---")
+        st.subheader("Region Drill Down")
+        selected_region = st.selectbox(
+            "Region",
+            options=region_frame["region"].astype(str).tolist(),
+            index=0,
+        )
 
-    if pd.notna(detail["actual"]):
-        abs_error = abs(float(detail["predicted"]) - float(detail["actual"]))
-        st.write(f"Actual count: **{float(detail['actual']):.2f}** | Absolute error: **{abs_error:.2f}**")
+        detail = region_frame[region_frame["region"] == selected_region].iloc[0]
+        st.write(f"LightGBM prediction: **{float(detail['predicted']):.2f}**")
+        if show_baseline:
+            st.write(f"Baseline prediction: **{float(detail['baseline']):.2f}**")
+        if pd.notna(detail["actual"]):
+            abs_error = abs(float(detail["predicted"]) - float(detail["actual"]))
+            st.write(f"Actual count: **{float(detail['actual']):.2f}**")
+            st.write(f"Absolute error: **{abs_error:.2f}**")
 
     st.caption("Input feature vector used for this region/week")
     st.dataframe(
